@@ -6,7 +6,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-const FadeInSection = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => {
+const FadeInSection = ({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = React.useState(false);
 
@@ -33,7 +33,7 @@ const FadeInSection = ({ children, delay = 0 }: { children: React.ReactNode; del
       ref={ref}
       className={`transition-all duration-1000 ease-out ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
-      }`}
+      } ${className}`}
     >
       {children}
     </div>

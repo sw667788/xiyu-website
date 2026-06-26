@@ -8,7 +8,7 @@ export default {
   },
   home: {
     badge: '전문 무역 · 품질 보증',
-    slogan: '먼저 행동하고, 뒤따르세요 · 시우 텍스타일',
+    slogan: ['먼저 행동하고, 뒤따르세요 · 시우 텍스타일'],
     subSlogan: '전문 원단 무역 상인 | 소싱 및 R&D | 맞춤 생산',
     advantages: {
       title: '핵심 장점',

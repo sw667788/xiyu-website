@@ -258,7 +258,7 @@ export default function Home() {
               <div className="aspect-[4/3] relative overflow-hidden">
                 <img
                   src="/images/amina-atar-4mEyvORkbN0-unsplash.jpg"
-                  alt={t.home.ourProduction}
+                  alt={t.home.ourCommitment}
                   className="w-full h-full object-cover"
                 />
               </div>

@@ -8,7 +8,7 @@ export default {
   },
   home: {
     badge: '专业贸易 · 品质保证',
-    slogan: '快速行动，抢占先机，跟随稀榆纺织',
+    slogan: ['快速行动，抢占先机，跟随稀榆纺织'],
     subSlogan: '专业面料贸易商 | 采购研发 | 定制生产',
     advantages: {
       title: '核心优势',
