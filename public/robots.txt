@@ -1,3 +1,6 @@
+# Robots.txt for Xiyu Textile
+# Updated: 2026-06-29
+
 User-agent: *
 Allow: /
 
