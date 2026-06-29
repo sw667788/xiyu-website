@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../hooks/useLanguage';
+import { useSEO } from '../hooks/useSEO';
 import { Link } from 'react-router-dom';
 import {
   Factory,
@@ -42,6 +43,7 @@ const FadeInSection = ({ children, delay = 0 }: { children: React.ReactNode; del
 
 export default function Production() {
   const { t } = useLanguage();
+  useSEO({title: t.seo.production.title, description: t.seo.production.description, keywords: t.seo.production.keywords});
 
   return (
     <div className="min-h-screen">

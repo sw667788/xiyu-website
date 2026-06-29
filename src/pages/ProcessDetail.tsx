@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../hooks/useLanguage';
+import { useSEO } from '../hooks/useSEO';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, Factory } from 'lucide-react';
 
@@ -48,6 +49,7 @@ const tags = ['SOURCING', 'DEVELOP', 'BULK', 'INSPECTION'];
 
 export default function ProcessDetail() {
   const { t } = useLanguage();
+  useSEO({title: t.seo.production.title, description: t.seo.production.description, keywords: t.seo.production.keywords});
   const { step } = useParams<{ step: string }>();
   
   const stepIndex = parseInt(step || '0');

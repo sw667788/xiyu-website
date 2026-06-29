@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://xiyutex.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://xiyutex.com/?lang=zh" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://xiyutex.com/?lang=en" />
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xiyutex.com/?lang=ko" />
+  </url>
+  <url>
+    <loc>https://xiyutex.com/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://xiyutex.com/about?lang=zh" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://xiyutex.com/about?lang=en" />
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xiyutex.com/about?lang=ko" />
+  </url>
+  <url>
+    <loc>https://xiyutex.com/products</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://xiyutex.com/products?lang=zh" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://xiyutex.com/products?lang=en" />
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xiyutex.com/products?lang=ko" />
+  </url>
+  <url>
+    <loc>https://xiyutex.com/production</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://xiyutex.com/production?lang=zh" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://xiyutex.com/production?lang=en" />
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xiyutex.com/production?lang=ko" />
+  </url>
+  <url>
+    <loc>https://xiyutex.com/contact</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://xiyutex.com/contact?lang=zh" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://xiyutex.com/contact?lang=en" />
+    <xhtml:link rel="alternate" hreflang="ko" href="https://xiyutex.com/contact?lang=ko" />
+  </url>
+</urlset>

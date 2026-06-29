@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../hooks/useLanguage';
+import { useSEO } from '../hooks/useSEO';
 import {
   Building2,
   Factory,
@@ -42,6 +43,7 @@ const FadeInSection = ({ children, delay = 0, className = '' }: { children: Reac
 
 export default function About() {
   const { t } = useLanguage();
+  useSEO({title: t.seo.about.title, description: t.seo.about.description, keywords: t.seo.about.keywords});
 
   return (
     <div className="min-h-screen">

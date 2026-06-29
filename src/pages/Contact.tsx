@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
+import { useSEO } from '../hooks/useSEO';
 import emailjs from '@emailjs/browser';
 import {
   Phone,
@@ -50,6 +51,7 @@ const EMAILJS_TEMPLATE_ID = 'template_ny8uxh8';
 
 export default function Contact() {
   const { t } = useLanguage();
+  useSEO({title: t.seo.contact.title, description: t.seo.contact.description, keywords: t.seo.contact.keywords});
   const [formData, setFormData] = useState({
     name: '',
     phone: '',

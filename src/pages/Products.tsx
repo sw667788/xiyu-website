@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../hooks/useLanguage';
+import { useSEO } from '../hooks/useSEO';
 import {
   ShoppingBag,
   Zap,
@@ -47,6 +48,7 @@ const FadeInSection = ({ children, delay = 0 }: { children: React.ReactNode; del
 
 export default function Products() {
   const { t } = useLanguage();
+  useSEO({title: t.seo.products.title, description: t.seo.products.description, keywords: t.seo.products.keywords});
   const [activeSeries, setActiveSeries] = useState(0);
 
   const seriesIcons = [ShoppingBag, Zap, Settings, CircleDot, Layers];

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../hooks/useLanguage';
+import { useSEO } from '../hooks/useSEO';
 import {
   Factory,
   ShoppingBag,
@@ -77,6 +78,12 @@ const FadeInSection = ({ children, delay = 0 }: { children: React.ReactNode; del
 
 export default function Home() {
   const { t } = useLanguage();
+
+  useSEO({
+    title: t.seo.home.title,
+    description: t.seo.home.description,
+    keywords: t.seo.home.keywords
+  });
 
   return (
     <div className="min-h-screen">

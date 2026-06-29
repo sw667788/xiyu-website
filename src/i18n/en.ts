@@ -195,6 +195,33 @@ export default {
     quickLinks: 'Quick Links',
     contactUs: 'Contact Us'
   },
+  seo: {
+    home: {
+      title: 'Xiyu Textile | Professional Fabric Trading Company',
+      description: 'Xiyu Textile is a professional fabric trading company specializing in 1:1 sample matching, custom production, and quality control. We offer chemical fiber, cotton & linen, yarn, finishing, and custom fabric series.',
+      keywords: 'Xiyu Textile, fabric trading, chemical fiber, cotton linen, yarn, custom fabric, sample matching, fabric supplier, textile company'
+    },
+    about: {
+      title: 'About Us | Xiyu Textile - Professional Fabric Trader',
+      description: 'Xiyu Textile is a professional fabric trading company with professional sample matching, production, and quality inspection teams. We have long-term partnerships with many high-quality textile factories in China.',
+      keywords: 'about Xiyu Textile, fabric trading company, textile supplier, fabric source, textile manufacturer'
+    },
+    products: {
+      title: 'Products | Xiyu Textile - Chemical Fiber, Cotton & Linen, Yarn, Finishing, Custom',
+      description: 'Xiyu Textile offers a full range of fabric products: Chemical Fiber Series (Polyester, Nylon), Cotton & Linen Series, Yarn Series, Finishing Series (Printing, Coating), and Custom Series.',
+      keywords: 'chemical fiber fabric, cotton linen fabric, yarn, fabric finishing, custom fabric, polyester, nylon, cotton, linen, printing, coating'
+    },
+    production: {
+      title: 'Process | Xiyu Textile - Sample Analysis, Fabric Matching, Dyeing, Quality Inspection',
+      description: 'Xiyu Textile professional fabric trading process: Sample Analysis, Fabric Matching, Dyeing Process, Quality Inspection. Every step is controlled by professional teams.',
+      keywords: 'fabric trading process, sample analysis, fabric matching, dyeing process, quality inspection, custom fabric process'
+    },
+    contact: {
+      title: 'Contact Us | Xiyu Textile - Professional Fabric Trader',
+      description: 'Contact Xiyu Textile: Phone +86 13771650911, WeChat: yoxingnan, Email: official@xiyutex.com. Address: No. 6 North, Boyi Knitting Park, 89 Zhenzhi Road, Shengze Town, Wujiang District, Suzhou, Jiangsu.',
+      keywords: 'contact Xiyu Textile, fabric supplier contact, textile company address, fabric sourcing'
+    }
+  },
   common: {
     explore: 'Explore',
     learnMore: 'Learn More',
