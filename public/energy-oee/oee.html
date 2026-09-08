@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>SMT设备OEE统计表</title>
+    <style>
+        * {box-sizing: border-box;font-family: "Microsoft Yahei",sans-serif;margin:0;padding:0;}
+        body {background:#ffffff;color:#333333;font-size:14px;padding:16px;}
+        .header-title {font-size:20px;font-weight:bold;margin-bottom:16px;color:#222;}
+        .search-bar {background:#fff;padding:12px;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+        input,select {padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;background:#fff;color:#333;}
+        button {padding:6px 14px;border:none;border-radius:4px;cursor:pointer;font-size:14px;}
+        .btn-green {background:#02a676;color:#fff;}
+        .btn-green:hover {background:#029469;}
+        .btn-gray {background:#6b7280;color:#fff;}
+        .btn-gray:hover {background:#575e69;}
+        .tool-bar {margin:10px 0;display:flex;gap:10px;}
+        table {width:100%;border-collapse: collapse;margin-top:10px;background:#fff;}
+        th,td {border:1px solid #e5e7eb;padding:8px;text-align:center;}
+        th {background:#f3f4f6;color:#111;font-weight:500;}
+        tr:nth-child(even) {background:#f9fafb;}
+        .link {color:#0066cc;cursor:pointer;}
+        .rate-excellent {color:#009944;font-weight:bold;}
+        .rate-good {color:#0088bb;font-weight:bold;}
+        .rate-normal {color:#cc8800;font-weight:bold;}
+        .rate-bad {color:#dd2222;font-weight:bold;}
+        .stat-card-wrap {display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+        .stat-card {border:1px solid #e5e7eb;background:#f9fafb;padding:12px 16px;border-radius:6px;min-width:140px;}
+        .stat-card h4 {color:#555;font-size:13px;margin-bottom:4px;}
+        .stat-card .val {font-size:22px;font-weight:bold;color:#111;}
+    </style>
+</head>
+<body>
+    <div class="header-title">SMT车间设备OEE统计表</div>
+
+    <!-- 统计面板 -->
+    <div class="stat-card-wrap">
+        <div class="stat-card">
+            <h4>设备总数</h4>
+            <div class="val" id="totalDevice">0</div>
+        </div>
+        <div class="stat-card">
+            <h4>平均可用率</h4>
+            <div class="val" id="avgAvail">0%</div>
+        </div>
+        <div class="stat-card">
+            <h4>平均性能率</h4>
+            <div class="val" id="avgPerf">0%</div>
+        </div>
+        <div class="stat-card">
+            <h4>平均良品率</h4>
+            <div class="val" id="avgQual">0%</div>
+        </div>
+        <div class="stat-card">
+            <h4>整体平均OEE</h4>
+            <div class="val" id="avgOEE">0%</div>
+        </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="search-bar">
+        <span>车间</span>
+        <select id="filterWorkshop">
+            <option value="">全部车间</option>
+            <option value="SMT车间">SMT车间</option>
+            <option value="AI车间">AI车间</option>
+            <option value="MI车间">MI车间</option>
+            <option value="空压机房">空压机房</option>
+            <option value="楼顶">楼顶</option>
+        </select>
+        <span>线体</span>
+        <input id="filterLine" placeholder="输入线体筛选(A线/B线...)">
+        <span>设备名称</span>
+        <input id="filterEqName" placeholder="设备名称模糊搜索">
+        <button class="btn-green" onclick="renderTable()">查询筛选</button>
+        <button class="btn-gray" onclick="resetFilter()">重置筛选</button>
+    </div>
+
+    <!-- 功能按钮 -->
+    <div class="tool-bar">
+        <button class="btn-green" onclick="addRow()">+ 添加设备行</button>
+        <button class="btn-green" onclick="exportCsv()">导出CSV报表</button>
+        <button class="btn-gray" onclick="resetInitData()">恢复初始设备数据</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>操作</th>
+                <th>车间</th>
+                <th>线体</th>
+                <th>设备编号</th>
+                <th>设备名称</th>
+                <th>设备型号</th>
+                <th>计划运行时长(h)</th>
+                <th>实际运行时长(h)</th>
+                <th>总产量</th>
+                <th>良品数</th>
+                <th>理论节拍(s)</th>
+                <th>可用率</th>
+                <th>性能率</th>
+                <th>良品率</th>
+                <th>OEE综合</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+    </table>
+
+<script>
+// 原始设备基础数据 + 模拟生产数据
+const initDeviceList = [
+{"workshop":"SMT车间","line":"物料组","code":"3-0-A11","name":"X-RAY点料机","model":"ISD-NI-RD650M-EB","planHour":8,"runningHour":7.5,"total":3200,"good":3180,"takt":8},
+{"workshop":"SMT车间","line":"物料组","code":"1-1-A49","name":"CO2激光打标机","model":"S450C","planHour":8,"runningHour":7.8,"total":2600,"good":2585,"takt":10},
+{"workshop":"SMT车间","line":"物料组","code":"1-4-A01-33","name":"离线烧录机","model":"SB05A","planHour":8,"runningHour":7.2,"total":2100,"good":2080,"takt":12},
+{"workshop":"SMT车间","line":"A线","code":"1-1-A79","name":"印刷机","model":"GSE_n","planHour":8,"runningHour":7.6,"total":1050,"good":1042,"takt":25},
+{"workshop":"SMT车间","line":"A线","code":"2-6-A07","name":"焊膏检查机SPI","model":"VSP3000","planHour":8,"runningHour":7.6,"total":1780,"good":1770,"takt":15},
+{"workshop":"SMT车间","line":"A线","code":"1-1-A81","name":"贴片机","model":"SM481PLUS","planHour":8,"runningHour":7.5,"total":62000,"good":61500,"takt":0.4},
+{"workshop":"SMT车间","line":"A线","code":"1-1-A91","name":"贴片机","model":"SM481PLUS","planHour":8,"runningHour":7.4,"total":60500,"good":60050,"takt":0.4},
+{"workshop":"SMT车间","line":"A线","code":"1-1-A78","name":"回流焊","model":"TEA-800","planHour":8,"runningHour":7.8,"total":900,"good":895,"takt":30},
+{"workshop":"SMT车间","line":"A线","code":"2-0-A09","name":"自动光学检查机AOI","model":"V5000H","planHour":8,"runningHour":7.5,"total":1450,"good":1435,"takt":18},
+{"workshop":"SMT车间","line":"B线","code":"1-1-A57","name":"印刷机","model":"CC+","planHour":8,"runningHour":7.7,"total":1180,"good":1172,"takt":22},
+{"workshop":"SMT车间","line":"B线","code":"2-0-A06","name":"焊膏检查机SPI","model":"VSP3000","planHour":8,"runningHour":7.7,"total":1820,"good":1810,"takt":15},
+{"workshop":"SMT车间","line":"B线","code":"1-1-A71","name":"贴片机","model":"NPM-W2","planHour":8,"runningHour":7.6,"total":88000,"good":87500,"takt":0.3},
+{"workshop":"SMT车间","line":"B线","code":"1-1-A72","name":"贴片机","model":"NPM-W2","planHour":8,"runningHour":7.5,"total":86500,"good":86000,"takt":0.3},
+{"workshop":"SMT车间","line":"B线","code":"1-1-A67","name":"回流焊","model":"CR1-1002II-T","planHour":8,"runningHour":7.9,"total":980,"good":975,"takt":28},
+{"workshop":"SMT车间","line":"B线","code":"2-0-A07","name":"自动光学检查机AOI","model":"V5000H","planHour":8,"runningHour":7.6,"total":1520,"good":1508,"takt":18},
+{"workshop":"SMT车间","line":"C线","code":"ZS-007","name":"上板机","model":"LD-M-SN","planHour":8,"runningHour":7.8,"total":680,"good":678,"takt":40},
+{"workshop":"SMT车间","line":"C线","code":"1-1-A15","name":"印刷机","model":"CC+","planHour":8,"runningHour":7.5,"total":1150,"good":1140,"takt":22},
+{"workshop":"SMT车间","line":"C线","code":"2-6-A08","name":"焊膏检查机SPI","model":"VSP3000","planHour":8,"runningHour":7.5,"total":1750,"good":1740,"takt":15},
+{"workshop":"SMT车间","line":"C线","code":"1-1-A70","name":"贴片机","model":"NPM-W2","planHour":8,"runningHour":7.4,"total":85000,"good":84500,"takt":0.3},
+{"workshop":"SMT车间","line":"C线","code":"1-1-A69","name":"贴片机","model":"NPM-W2","planHour":8,"runningHour":7.3,"total":83500,"good":83000,"takt":0.3},
+{"workshop":"SMT车间","line":"C线","code":"1-1-A90","name":"八温区回流焊","model":"TEA-800","planHour":8,"runningHour":7.7,"total":920,"good":915,"takt":30},
+{"workshop":"SMT车间","line":"C线","code":"2-0-A08","name":"自动光学检查机AOI","model":"V5000H","planHour":8,"runningHour":7.4,"total":1480,"good":1468,"takt":18},
+{"workshop":"SMT车间","line":"D线","code":"1-4-A01-34","name":"印刷机","model":"CPS","planHour":8,"runningHour":7.3,"total":1080,"good":1070,"takt":24},
+{"workshop":"SMT车间","line":"D线","code":"1-1-A87","name":"三维焊膏检查机SPI","model":"InSPIre-510b","planHour":8,"runningHour":7.3,"total":2050,"good":2040,"takt":12},
+{"workshop":"SMT车间","line":"D线","code":"1-1-A11","name":"贴片机","model":"NPM-W2","planHour":8,"runningHour":7.2,"total":82000,"good":81500,"takt":0.3},
+{"workshop":"SMT车间","line":"D线","code":"2-6-A09","name":"炉前AOI","model":"V5000H","planHour":8,"runningHour":7.2,"total":1400,"good":1390,"takt":18},
+{"workshop":"SMT车间","line":"D线","code":"1-1-A10","name":"贴片机","model":"NPM-W2","planHour":8,"runningHour":7.1,"total":80500,"good":80000,"takt":0.3},
+{"workshop":"SMT车间","line":"D线","code":"1-4-D39","name":"回流焊","model":"CR1-1002II-T","planHour":8,"runningHour":7.5,"total":950,"good":945,"takt":28},
+{"workshop":"SMT车间","line":"D线","code":"1-4-A01-62","name":"3D AOI检测仪","model":"Zenith Alpha","planHour":8,"runningHour":7.2,"total":1580,"good":1565,"takt":16},
+{"workshop":"SMT车间","line":"E线","code":"1-1-A14","name":"印刷机","model":"CC+","planHour":8,"runningHour":7.8,"total":1200,"good":1192,"takt":22},
+{"workshop":"SMT车间","line":"E线","code":"1-1-A80","name":"3D SPI检测仪","model":"InSPIre-510b","planHour":8,"runningHour":7.8,"total":2150,"good":2140,"takt":12},
+{"workshop":"SMT车间","line":"E线","code":"1-1-A08","name":"高速贴片机","model":"NPM-W2","planHour":8,"runningHour":7.7,"total":90000,"good":89500,"takt":0.3},
+{"workshop":"SMT车间","line":"E线","code":"2-6-A10","name":"炉前AOI","model":"V5000H","planHour":8,"runningHour":7.7,"total":1550,"good":1540,"takt":18},
+{"workshop":"SMT车间","line":"E线","code":"1-1-A09","name":"高精度贴片机","model":"NPM-W2","planHour":8,"runningHour":7.6,"total":52000,"good":51700,"takt":0.5},
+{"workshop":"SMT车间","line":"E线","code":"1-4-D38","name":"十温区回流焊","model":"ER2-1003X-N","planHour":8,"runningHour":7.9,"total":1020,"good":1015,"takt":26},
+{"workshop":"SMT车间","line":"E线","code":"1-4-A01-61","name":"3D AOI检测仪","model":"Zenith Alpha","planHour":8,"runningHour":7.7,"total":1620,"good":1608,"takt":16},
+{"workshop":"SMT车间","line":"E线","code":"ZS-019","name":"缓存机","model":"ZZ-HC-S73","planHour":8,"runningHour":7.9,"total":450,"good":449,"takt":60},
+{"workshop":"SMT车间","line":"E线","code":"1-1-A07","name":"离线X光检查机","model":"Phoenix X│aminer","planHour":8,"runningHour":7.0,"total":780,"good":775,"takt":35},
+{"workshop":"SMT车间","line":"QA","code":"2-0-A23","name":"全自动首件检查机FAI","model":"FAI-I450","planHour":8,"runningHour":6.5,"total":1200,"good":1195,"takt":20},
+{"workshop":"AI车间","line":"AI-A1","code":"1-4-E01-03","name":"卧式插件机","model":"PIS4000","planHour":8,"runningHour":7.2,"total":1650,"good":1630,"takt":15},
+{"workshop":"AI车间","line":"AI-A2","code":"1-4-E01-06","name":"立式插件机","model":"PIS3000","planHour":8,"runningHour":7.4,"total":2050,"good":2030,"takt":12},
+{"workshop":"AI车间","line":"AI-B1","code":"1-4-E01-05","name":"卧式插件机","model":"PIS4000","planHour":8,"runningHour":7.0,"total":1580,"good":1560,"takt":15},
+{"workshop":"AI车间","line":"AI-B2","code":"1-4-E01-04","name":"立式插件机","model":"PIS3000","planHour":8,"runningHour":7.3,"total":1980,"good":1960,"takt":12},
+{"workshop":"MI车间","line":"MI-B","code":"1-4-D43","name":"无铅波峰焊","model":"HWE-450II-H","planHour":8,"runningHour":7.5,"total":580,"good":565,"takt":45},
+{"workshop":"MI车间","line":"MI-C","code":"1-1-A47","name":"无铅波峰焊","model":"HWE-350II-M","planHour":8,"runningHour":7.3,"total":620,"good":605,"takt":42},
+{"workshop":"MI车间","line":"MI-B","code":"新机未编号","name":"上下双照AOI","model":"V5300","planHour":8,"runningHour":7.4,"total":1350,"good":1335,"takt":20},
+{"workshop":"MI车间","line":"MI-C","code":"无编号","name":"上下双照AOI","model":"V5300","planHour":8,"runningHour":7.2,"total":1280,"good":1265,"takt":20},
+{"workshop":"MI车间","line":"MI-D","code":"无编号","name":"上下双照AOI","model":"V5300","planHour":8,"runningHour":7.0,"total":1220,"good":1205,"takt":20},
+{"workshop":"MI车间","line":"MI-C","code":"1-1-A48","name":"德律ICT测试仪","model":"TR5001E","planHour":8,"runningHour":7.1,"total":850,"good":840,"takt":30},
+{"workshop":"MI车间","line":"MI-D","code":"1-1-A68","name":"德律ICT测试仪","model":"TR5001E","planHour":8,"runningHour":6.9,"total":800,"good":790,"takt":30},
+{"workshop":"MI车间","line":"MI-D","code":"1-1-A86","name":"无铅波峰焊","model":"HWE-350II-M","planHour":8,"runningHour":7.1,"total":600,"good":585,"takt":42},
+{"workshop":"MI车间","line":"喷胶C","code":"1-1-A77","name":"全自动选择性涂覆机","model":"iCoat-3","planHour":8,"runningHour":7.4,"total":1020,"good":1005,"takt":25},
+{"workshop":"MI车间","line":"喷胶C","code":"1-1-A76","name":"红外固化炉","model":"iCure-3","planHour":8,"runningHour":7.6,"total":450,"good":445,"takt":60},
+{"workshop":"MI车间","line":"喷胶A","code":"1-1-A25","name":"选择性涂覆机","model":"OL-450GS4","planHour":8,"runningHour":7.2,"total":980,"good":965,"takt":22},
+{"workshop":"MI车间","line":"喷胶A","code":"1-1-A21","name":"触摸屏UV炉","model":"UV400-WJKT2","planHour":8,"runningHour":7.5,"total":540,"good":535,"takt":50},
+{"workshop":"MI车间","line":"喷胶B","code":"1-4-D44","name":"选择性涂覆机","model":"OL-450GS4","planHour":8,"runningHour":7.0,"total":950,"good":935,"takt":22},
+{"workshop":"MI车间","line":"喷胶B","code":"1-1-A66","name":"UV固化炉","model":"UV400-WJKT2","planHour":8,"runningHour":7.3,"total":520,"good":515,"takt":50},
+{"workshop":"MI车间","line":"分板","code":"1-1-A89","name":"分板机","model":"RM-288","planHour":8,"runningHour":7.5,"total":900,"good":890,"takt":30},
+{"workshop":"MI车间","line":"分板","code":"1-4-A01-36","name":"四轴视觉铣刀分板机","model":"RS-500L","planHour":8,"runningHour":7.3,"total":1050,"good":1040,"takt":24},
+{"workshop":"MI车间","line":"清洗房","code":"3-0-A10","name":"水基旋转喷淋清洗机","model":"RHHT-700S","planHour":8,"runningHour":7.0,"total":650,"good":645,"takt":40},
+{"workshop":"MI车间","line":"灌胶","code":"1-1-A50","name":"自动灌胶机","model":"PGB-650X","planHour":8,"runningHour":6.8,"total":720,"good":705,"takt":35},
+{"workshop":"空压机房","line":"","code":"无编号","name":"螺杆空压机","model":"LGGPM-125","planHour":24,"runningHour":23.5,"total":1000,"good":1000,"takt":999},
+{"workshop":"空压机房","line":"","code":"3-0-A51","name":"冷冻式冷干机","model":"YQ-220AH","planHour":24,"runningHour":23.8,"total":1000,"good":1000,"takt":999},
+{"workshop":"空压机房","line":"","code":"3-0-A50","name":"吸附式干燥机","model":"QE-220","planHour":24,"runningHour":23.6,"total":1000,"good":1000,"takt":999},
+{"workshop":"空压机房","line":"","code":"3-0-D45","name":"5HP冷风机","model":"","planHour":24,"runningHour":23.9,"total":1000,"good":1000,"takt":999},
+{"workshop":"SMT车间","line":"SMT-E","code":"1-1-A146","name":"模组式制氮机","model":"YQ-30MZ","planHour":24,"runningHour":23.7,"total":1000,"good":1000,"takt":999},
+{"workshop":"SMT车间","line":"","code":"1-1-A220","name":"飞达校正仪","model":"","planHour":8,"runningHour":5.5,"total":200,"good":198,"takt":999},
+{"workshop":"SMT车间","line":"","code":"2-0-A23","name":"首件检测仪","model":"FAI-I450","planHour":8,"runningHour":6.2,"total":180,"good":178,"takt":20},
+{"workshop":"MI车间","line":"","code":"4-0-A22","name":"艾莎选择焊","model":"","planHour":8,"runningHour":6.5,"total":480,"good":470,"takt":48},
+{"workshop":"楼顶","line":"SMT","code":"3-0-A44","name":"SMT贴片环保设备","model":"","planHour":24,"runningHour":23.8,"total":1000,"good":1000,"takt":999}
+];
+
+let dataList = JSON.parse(localStorage.getItem('oeeDeviceData')) || JSON.parse(JSON.stringify(initDeviceList));
+
+// OEE核心计算
+function calcSingle(item){
+    const plan = Number(item.planHour)||0;
+    const run = Number(item.runningHour)||0;
+    const total = Number(item.total)||0;
+    const good = Number(item.good)||0;
+    const takt = Number(item.takt)||1;
+
+    const avail = plan>0 ? run/plan : 0;
+    const theoryOut = run * 3600 / takt;
+    const perf = theoryOut>0 ? total / theoryOut : 0;
+    const qual = total>0 ? good / total : 0;
+    const oee = avail * perf * qual;
+
+    return {
+        availRate: (avail*100).toFixed(2)+"%",
+        perfRate: (perf*100).toFixed(2)+"%",
+        qualRate: (qual*100).toFixed(2)+"%",
+        oeeVal: (oee*100).toFixed(2),
+        oeePercent: (oee*100).toFixed(2)+"%"
+    }
+}
+
+// 获取OEE文字颜色
+function getOeeClass(val){
+    let v = Number(val);
+    if(v >= 85) return "rate-excellent";
+    if(v >=70) return "rate-good";
+    if(v >=60) return "rate-normal";
+    return "rate-bad";
+}
+
+// 渲染表格+统计面板
+function renderTable(){
+    const wsKey = document.getElementById("filterWorkshop").value;
+    const lineKey = document.getElementById("filterLine").value.trim().toLowerCase();
+    const eqKey = document.getElementById("filterEqName").value.trim().toLowerCase();
+
+    let filterData = [...dataList];
+    if(wsKey) filterData = filterData.filter(d=>d.workshop === wsKey);
+    if(lineKey) filterData = filterData.filter(d=>d.line.toLowerCase().includes(lineKey));
+    if(eqKey) filterData = filterData.filter(d=>d.name.toLowerCase().includes(eqKey));
+
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    let sumAvail = 0, sumPerf=0, sumQual=0, sumOEE=0;
+    filterData.forEach((item,idx)=>{
+        const calc = calcSingle(item);
+        sumAvail += parseFloat(calc.availRate);
+        sumPerf += parseFloat(calc.perfRate);
+        sumQual += parseFloat(calc.qualRate);
+        sumOEE += parseFloat(calc.oeeVal);
+        const oeeCls = getOeeClass(calc.oeeVal);
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td><span class="link" onclick="delRow(${dataList.indexOf(item)})">删除</span></td>
+            <td>${item.workshop}</td>
+            <td>${item.line}</td>
+            <td>${item.code}</td>
+            <td>${item.name}</td>
+            <td>${item.model}</td>
+            <td><input type="number" value="${item.planHour}" onchange="updateData(${dataList.indexOf(item)},'planHour',Number(this.value))"></td>
+            <td><input type="number" value="${item.runningHour}" onchange="updateData(${dataList.indexOf(item)},'runningHour',Number(this.value))"></td>
+            <td><input type="number" value="${item.total}" onchange="updateData(${dataList.indexOf(item)},'total',Number(this.value))"></td>
+            <td><input type="number" value="${item.good}" onchange="updateData(${dataList.indexOf(item)},'good',Number(this.value))"></td>
+            <td><input type="number" value="${item.takt}" onchange="updateData(${dataList.indexOf(item)},'takt',Number(this.value))"></td>
+            <td>${calc.availRate}</td>
+            <td>${calc.perfRate}</td>
+            <td>${calc.qualRate}</td>
+            <td class="${oeeCls}">${calc.oeePercent}</td>
+        `;
+        tbody.appendChild(tr);
+    })
+
+    // 更新统计卡片
+    const len = filterData.length;
+    document.getElementById("totalDevice").innerText = len;
+    document.getElementById("avgAvail").innerText = len>0 ? (sumAvail/len).toFixed(2)+"%" : "0%";
+    document.getElementById("avgPerf").innerText = len>0 ? (sumPerf/len).toFixed(2)+"%" : "0%";
+    document.getElementById("avgQual").innerText = len>0 ? (sumQual/len).toFixed(2)+"%" : "0%";
+    document.getElementById("avgOEE").innerText = len>0 ? (sumOEE/len).toFixed(2)+"%" : "0%";
+}
+
+// 修改单元格数据
+function updateData(index,key,val){
+    dataList[index][key] = val;
+    saveLocal();
+    renderTable();
+}
+
+// 新增设备行
+function addRow(){
+    dataList.push({
+        workshop:"SMT车间",line:"A线",code:"NEW-001",name:"新设备",model:"",
+        planHour:8,runningHour:8,total:0,good:0,takt:10
+    });
+    saveLocal();
+    renderTable();
+}
+
+// 删除行
+function delRow(idx){
+    if(!confirm("确认删除该设备记录？")) return;
+    dataList.splice(idx,1);
+    saveLocal();
+    renderTable();
+}
+
+// 本地存储
+function saveLocal(){
+    localStorage.setItem('oeeDeviceData',JSON.stringify(dataList));
+}
+
+// 重置筛选条件
+function resetFilter(){
+    document.getElementById("filterWorkshop").value = "";
+    document.getElementById("filterLine").value = "";
+    document.getElementById("filterEqName").value = "";
+    renderTable();
+}
+
+// 恢复初始全部设备数据
+function resetInitData(){
+    if(!confirm("确定恢复原始设备清单，当前录入数据会清空？")) return;
+    dataList = JSON.parse(JSON.stringify(initDeviceList));
+    saveLocal();
+    renderTable();
+}
+
+// 导出CSV
+function exportCsv(){
+    let csv = "车间,线体,设备编号,设备名称,型号,计划工时(h),实际工时(h),总产量,良品数,理论节拍(s),可用率,性能率,良品率,OEE\n";
+    dataList.forEach(item=>{
+        const c = calcSingle(item);
+        csv += `${item.workshop},${item.line},${item.code},${item.name},${item.model},${item.planHour},${item.runningHour},${item.total},${item.good},${item.takt},${c.availRate},${c.perfRate},${c.qualRate},${c.oeePercent}\n`;
+    })
+    const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "OEE设备统计表_"+new Date().toLocaleDateString()+".csv";
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+window.onload = function(){
+    renderTable();
+}
+</script>
+</body>
+</html>

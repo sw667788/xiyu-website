@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>江苏常荣电器 - 高能耗设备动态运行监控系统</title>
+    <!-- 引入ECharts图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- 引入Tailwind CSS快速样式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", "PingFang SC", sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        /* 状态标签样式 */
+        .status-running {
+            background-color: #10b981;
+            color: white;
+        }
+        .status-standby {
+            background-color: #f59e0b;
+            color: white;
+        }
+        .status-fault {
+            background-color: #ef4444;
+            color: white;
+        }
+        .status-offline {
+            background-color: #6b7280;
+            color: white;
+        }
+        /* 卡片悬浮效果 */
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        /* 告警闪烁动画 */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .alarm-blink {
+            animation: blink 1s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- 顶部导航栏 -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="bg-blue-600 text-white px-3 py-2 rounded-lg font-bold text-lg">
+                    常荣电器
+                </div>
+                <div>
+                    <h1 class="text-xl font-semibold text-gray-800">高能耗设备动态运行监控系统</h1>
+                    <p class="text-sm text-gray-500">实时监控 · 能耗分析 · 异常预警</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="text-sm text-gray-600">
+                    最后更新：<span id="lastUpdate">2026-08-25 12:00:00</span>
+                </div>
+                <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    刷新数据
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-6 py-6">
+        <!-- 核心指标总览 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 mb-1">设备总数</p>
+                        <p class="text-3xl font-bold text-gray-800">11</p>
+                    </div>
+                    <div class="bg-blue-100 text-blue-600 p-3 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 mb-1">运行中设备</p>
+                        <p class="text-3xl font-bold text-green-600" id="runningCount">8</p>
+                    </div>
+                    <div class="bg-green-100 text-green-600 p-3 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 mb-1">实时总功率</p>
+                        <p class="text-3xl font-bold text-orange-600" id="totalPower">458.17</p>
+                        <p class="text-sm text-gray-500">kW</p>
+                    </div>
+                    <div class="bg-orange-100 text-orange-600 p-3 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 mb-1">当日累计能耗</p>
+                        <p class="text-3xl font-bold text-purple-600" id="dailyEnergy">5218.3</p>
+                        <p class="text-sm text-gray-500">kWh</p>
+                    </div>
+                    <div class="bg-purple-100 text-purple-600 p-3 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 告警预警区域 -->
+        <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 hidden" id="alarmPanel">
+            <div class="flex items-center">
+                <div class="bg-red-500 text-white p-2 rounded-full mr-3 alarm-blink">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-semibold text-red-800">设备异常告警</h3>
+                    <p class="text-red-600 text-sm" id="alarmContent">检测到设备运行异常，请及时处理</p>
+                </div>
+                <button class="text-red-600 hover:text-red-800" onclick="hideAlarm()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 主要内容区域 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 左侧：设备实时监控列表 -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800">设备实时运行状态</h2>
+                        <div class="flex space-x-2">
+                            <button class="px-3 py-1 text-sm bg-green-100 text-green-600 rounded-md hover:bg-green-200 transition-colors" onclick="filterDevices('all')">全部</button>
+                            <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors" onclick="filterDevices('running')">运行中</button>
+                            <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors" onclick="filterDevices('standby')">待机</button>
+                            <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors" onclick="filterDevices('fault')">故障</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-auto">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">设备信息</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">位置</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">额定功率</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">实时功率</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">运行时长</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">当日能耗</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deviceTable">
+                                <!-- 设备数据由JS动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 能耗趋势图表 -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">当日能耗趋势</h2>
+                    <div id="energyTrendChart" style="height: 300px;"></div>
+                </div>
+            </div>
+
+            <!-- 右侧：能耗占比 + 设备详情 -->
+            <div>
+                <!-- 设备能耗占比 -->
+                <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">设备能耗占比</h2>
+                    <div id="energyPieChart" style="height: 300px;"></div>
+                </div>
+
+                <!-- 设备详情卡片 -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">设备详情</h2>
+                    <div id="deviceDetail" class="text-sm">
+                        <p class="text-gray-500 text-center py-8">点击设备列表查看详情</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设备详情弹窗 -->
+    <div id="deviceModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800" id="modalTitle">设备详情</h3>
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="modalContent" class="space-y-4">
+                    <!-- 弹窗内容由JS动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 设备基础数据（从Excel读取的11台高能耗设备）
+        const deviceList = [
+            {
+                id: 1,
+                name: "螺杆空气压缩机",
+                model: "LGGPM‑125",
+                code: "202112957",
+                location: "空压机房",
+                ratedPower: 90.00,
+                dailyRunTime: 16,
+                remark: "全厂压缩空气动力源，连续运行，公用高耗能核心设备",
+                status: "running",
+                realTimePower: 88.5,
+                runHours: 12.5,
+                dailyEnergy: 1106.25
+            },
+            {
+                id: 2,
+                name: "八温区无铅热风回流焊",
+                model: "TEA‑800",
+                code: "1130‑2103‑182",
+                location: "SMT‑A线",
+                ratedPower: 64.00,
+                dailyRunTime: 14,
+                remark: "热工设备，加热功耗大，禁止空载长时间保温",
+                status: "running",
+                realTimePower: 62.8,
+                runHours: 10.2,
+                dailyEnergy: 640.56
+            },
+            {
+                id: 3,
+                name: "八温区无铅热风回流焊",
+                model: "TEA‑800",
+                code: "1130‑2010‑121",
+                location: "SMT‑C线",
+                ratedPower: 64.00,
+                dailyRunTime: 14,
+                remark: "热工设备，跟随SMT产线同步启停",
+                status: "running",
+                realTimePower: 63.1,
+                runHours: 10.2,
+                dailyEnergy: 643.62
+            },
+            {
+                id: 4,
+                name: "无铅回流焊",
+                model: "CR1‑1002II‑T",
+                code: "21060114‑01",
+                location: "SMT‑B线",
+                ratedPower: 80.77,
+                dailyRunTime: 14,
+                remark: "高温加热，氮气焊接工况下能耗进一步升高",
+                status: "running",
+                realTimePower: 79.2,
+                runHours: 10.2,
+                dailyEnergy: 807.84
+            },
+            {
+                id: 5,
+                name: "无铅回流焊",
+                model: "CR1‑1002II‑T",
+                code: "20220414002‑1",
+                location: "SMT‑D线",
+                ratedPower: 80.70,
+                dailyRunTime: 14,
+                remark: "热工高耗能，停产必须降温停机",
+                status: "standby",
+                realTimePower: 12.5,
+                runHours: 0,
+                dailyEnergy: 0
+            },
+            {
+                id: 6,
+                name: "无铅回流焊",
+                model: "ER2‑1003X‑N",
+                code: "20220414002‑1N",
+                location: "SMT‑E线",
+                ratedPower: 84.00,
+                dailyRunTime: 14,
+                remark: "十温区带氮气冷却，功率最高回流焊设备",
+                status: "running",
+                realTimePower: 82.6,
+                runHours: 10.2,
+                dailyEnergy: 842.52
+            },
+            {
+                id: 7,
+                name: "无铅波峰焊",
+                model: "HWE‑450II‑H",
+                code: "23030202‑01",
+                location: "MI车间‑B",
+                ratedPower: 35.00,
+                dailyRunTime: 12,
+                remark: "锡炉持续加热，MI插件线主力热工设备",
+                status: "running",
+                realTimePower: 34.2,
+                runHours: 8.5,
+                dailyEnergy: 290.7
+            },
+            {
+                id: 8,
+                name: "无铅波峰焊",
+                model: "HWE‑350II‑M",
+                code: "2111005‑01",
+                location: "MI车间‑C",
+                ratedPower: 35.41,
+                dailyRunTime: 12,
+                remark: "插件生产连续加热运行",
+                status: "running",
+                realTimePower: 34.8,
+                runHours: 8.5,
+                dailyEnergy: 295.8
+            },
+            {
+                id: 9,
+                name: "无铅波峰焊",
+                model: "HWE‑350II‑M",
+                code: "21060115‑01",
+                location: "MI车间‑D",
+                ratedPower: 35.41,
+                dailyRunTime: 12,
+                remark: "插件生产连续加热运行",
+                status: "fault",
+                realTimePower: 0,
+                runHours: 0,
+                dailyEnergy: 0
+            },
+            {
+                id: 10,
+                name: "模组式制氮机",
+                model: "YQ‑30MZ",
+                code: "EPSN2022112130",
+                location: "SMT车间",
+                ratedPower: 32.00,
+                dailyRunTime: 14,
+                remark: "为回流焊提供氮气保护，产线开机即持续运行",
+                status: "running",
+                realTimePower: 31.5,
+                runHours: 10.2,
+                dailyEnergy: 321.3
+            },
+            {
+                id: 11,
+                name: "水基型旋转喷淋清洗机",
+                model: "RHHT‑700S",
+                code: "2022041501",
+                location: "MI车间清洗房",
+                ratedPower: 32.00,
+                dailyRunTime: 8,
+                remark: "加热喷淋清洗，大功率加热单元，间歇高负荷运行",
+                status: "standby",
+                realTimePower: 5.2,
+                runHours: 0,
+                dailyEnergy: 0
+            }
+        ];
+
+        // 初始化页面
+        function initPage() {
+            renderDeviceTable(deviceList);
+            renderEnergyTrendChart();
+            renderEnergyPieChart();
+            updateCoreMetrics();
+            startRealTimeUpdate();
+        }
+
+        // 渲染设备表格
+        function renderDeviceTable(devices) {
+            const tbody = document.getElementById('deviceTable');
+            tbody.innerHTML = '';
+            
+            devices.forEach(device => {
+                const statusClass = `status-${device.status}`;
+                const statusText = {
+                    'running': '运行中',
+                    'standby': '待机',
+                    'fault': '故障',
+                    'offline': '离线'
+                }[device.status];
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors';
+                row.innerHTML = `
+                    <td class="px-4 py-3">
+                        <div class="font-medium text-gray-800">${device.name}</div>
+                        <div class="text-xs text-gray-500">${device.model}</div>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${device.location}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${device.ratedPower} kW</td>
+                    <td class="px-4 py-3 text-sm font-medium ${device.realTimePower > 0 ? 'text-green-600' : 'text-gray-500'}">${device.realTimePower} kW</td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${device.runHours.toFixed(1)} h</td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${device.dailyEnergy.toFixed(1)} kWh</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-1 text-xs rounded-full ${statusClass}">${statusText}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <button onclick="showDeviceDetail(${device.id})" class="text-blue-600 hover:text-blue-800 text-sm mr-2">详情</button>
+                        <button onclick="showDeviceModal(${device.id})" class="text-green-600 hover:text-green-800 text-sm">查看</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 渲染能耗趋势图表
+        function renderEnergyTrendChart() {
+            const chartDom = document.getElementById('energyTrendChart');
+            const myChart = echarts.init(chartDom);
+            
+            // 生成24小时时间轴
+            const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+            // 模拟当日能耗数据
+            const energyData = [
+                120, 110, 105, 100, 95, 100, 110, 130, 180, 220, 240, 250,
+                240, 230, 240, 250, 260, 250, 240, 220, 200, 180, 150, 130
+            ];
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: '{b}: {c} kWh'
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: hours,
+                    axisLabel: {
+                        fontSize: 10,
+                        rotate: 45
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '能耗 (kWh)',
+                    nameTextStyle: {
+                        fontSize: 12
+                    }
+                },
+                series: [{
+                    name: '当日能耗',
+                    type: 'line',
+                    data: energyData,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    lineStyle: {
+                        color: '#3b82f6'
+                    },
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0,
+                            y: 0,
+                            x2: 0,
+                            y2: 1,
+                            colorStops: [{
+                                offset: 0, color: 'rgba(59, 130, 246, 0.3)'
+                            }, {
+                                offset: 1, color: 'rgba(59, 130, 246, 0.05)'
+                            }]
+                        }
+                    }
+                }]
+            };
+
+            myChart.setOption(option);
+            
+            // 窗口大小变化时自适应
+            window.addEventListener('resize', () => {
+                myChart.resize();
+            });
+        }
+
+        // 渲染能耗占比饼图
+        function renderEnergyPieChart() {
+            const chartDom = document.getElementById('energyPieChart');
+            const myChart = echarts.init(chartDom);
+            
+            // 按设备统计能耗占比
+            const energyData = deviceList
+                .filter(device => device.dailyEnergy > 0)
+                .map(device => ({
+                    name: device.name,
+                    value: device.dailyEnergy
+                }));
+
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c} kWh ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left',
+                    top: 'center',
+                    textStyle: {
+                        fontSize: 10
+                    }
+                },
+                series: [{
+                    name: '设备能耗',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    center: ['60%', '50%'],
+                    avoidLabelOverlap: false,
+                    label: {
+                        show: false,
+                        position: 'center'
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '16',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    },
+                    data: energyData
+                }]
+            };
+
+            myChart.setOption(option);
+            
+            window.addEventListener('resize', () => {
+                myChart.resize();
+            });
+        }
+
+        // 更新核心指标
+        function updateCoreMetrics() {
+            const runningCount = deviceList.filter(d => d.status === 'running').length;
+            const totalPower = deviceList.reduce((sum, d) => sum + d.realTimePower, 0);
+            const dailyEnergy = deviceList.reduce((sum, d) => sum + d.dailyEnergy, 0);
+
+            document.getElementById('runningCount').textContent = runningCount;
+            document.getElementById('totalPower').textContent = totalPower.toFixed(2);
+            document.getElementById('dailyEnergy').textContent = dailyEnergy.toFixed(1);
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        // 实时数据更新
+        function startRealTimeUpdate() {
+            setInterval(() => {
+                // 模拟实时功率波动
+                deviceList.forEach(device => {
+                    if (device.status === 'running') {
+                        const fluctuation = (Math.random() - 0.5) * 2; // ±1kW波动
+                        device.realTimePower = Math.max(0, Math.min(device.ratedPower, device.realTimePower + fluctuation));
+                        // 运行时长每分钟增加0.01小时（约36秒）
+                        device.runHours += 0.01;
+                        // 当日能耗同步更新
+                        device.dailyEnergy = device.realTimePower * device.runHours;
+                    }
+                });
+
+                // 更新表格和指标
+                renderDeviceTable(deviceList);
+                updateCoreMetrics();
+
+                // 模拟异常告警
+                const faultDevice = deviceList.find(d => d.status === 'fault');
+                if (faultDevice) {
+                    showAlarm(`设备【${faultDevice.name}】处于故障状态，请及时处理`);
+                }
+            }, 1000); // 每秒更新一次
+        }
+
+        // 设备筛选
+        function filterDevices(status) {
+            let filteredDevices = status === 'all' ? deviceList : deviceList.filter(d => d.status === status);
+            renderDeviceTable(filteredDevices);
+        }
+
+        // 显示设备详情（右侧卡片）
+        function showDeviceDetail(deviceId) {
+            const device = deviceList.find(d => d.id === deviceId);
+            if (!device) return;
+
+            const detailDiv = document.getElementById('deviceDetail');
+            const statusText = {
+                'running': '运行中',
+                'standby': '待机',
+                'fault': '故障',
+                'offline': '离线'
+            }[device.status];
+
+            detailDiv.innerHTML = `
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">设备名称：</span>
+                        <span class="font-medium">${device.name}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">设备型号：</span>
+                        <span class="font-medium">${device.model}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">设备编号：</span>
+                        <span class="font-medium">${device.code}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">安装位置：</span>
+                        <span class="font-medium">${device.location}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">额定功率：</span>
+                        <span class="font-medium">${device.ratedPower} kW</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">实时功率：</span>
+                        <span class="font-medium ${device.realTimePower > 0 ? 'text-green-600' : 'text-gray-500'}">${device.realTimePower} kW</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">运行时长：</span>
+                        <span class="font-medium">${device.runHours.toFixed(1)} h</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">当日能耗：</span>
+                        <span class="font-medium">${device.dailyEnergy.toFixed(1)} kWh</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">设备状态：</span>
+                        <span class="px-2 py-1 text-xs rounded-full status-${device.status}">${statusText}</span>
+                    </div>
+                    <div class="pt-2 border-t border-gray-200">
+                        <p class="text-gray-500 mb-1">能耗特征：</p>
+                        <p class="text-gray-700">${device.remark}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 显示设备详情弹窗
+        function showDeviceModal(deviceId) {
+            const device = deviceList.find(d => d.id === deviceId);
+            if (!device) return;
+
+            const modal = document.getElementById('deviceModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalContent = document.getElementById('modalContent');
+            
+            modalTitle.textContent = `设备详情 - ${device.name}`;
+            
+            const statusText = {
+                'running': '运行中',
+                'standby': '待机',
+                'fault': '故障',
+                'offline': '离线'
+            }[device.status];
+
+            modalContent.innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">设备名称：</span>
+                            <span class="font-medium">${device.name}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">设备型号：</span>
+                            <span class="font-medium">${device.model}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">设备编号：</span>
+                            <span class="font-medium">${device.code}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">安装位置：</span>
+                            <span class="font-medium">${device.location}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">额定功率：</span>
+                            <span class="font-medium">${device.ratedPower} kW</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">实时功率：</span>
+                            <span class="font-medium ${device.realTimePower > 0 ? 'text-green-600' : 'text-gray-500'}">${device.realTimePower} kW</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">运行时长：</span>
+                            <span class="font-medium">${device.runHours.toFixed(1)} h</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">当日能耗：</span>
+                            <span class="font-medium">${device.dailyEnergy.toFixed(1)} kWh</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">日均运行时长：</span>
+                            <span class="font-medium">${device.dailyRunTime} h</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">设备状态：</span>
+                            <span class="px-2 py-1 text-xs rounded-full status-${device.status}">${statusText}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-4 border-t border-gray-200">
+                    <h4 class="font-medium text-gray-800 mb-2">能耗特征说明</h4>
+                    <p class="text-gray-700">${device.remark}</p>
+                </div>
+                <div class="pt-4 border-t border-gray-200 flex justify-end space-x-2">
+                    <button class="px-4 py-2 text-sm bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors" onclick="closeModal()">关闭</button>
+                    <button class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors" onclick="exportDeviceData(${device.id})">导出数据</button>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+        }
+
+        // 关闭弹窗
+        function closeModal() {
+            document.getElementById('deviceModal').classList.add('hidden');
+        }
+
+        // 显示告警
+        function showAlarm(content) {
+            const alarmPanel = document.getElementById('alarmPanel');
+            const alarmContent = document.getElementById('alarmContent');
+            alarmContent.textContent = content;
+            alarmPanel.classList.remove('hidden');
+        }
+
+        // 隐藏告警
+        function hideAlarm() {
+            document.getElementById('alarmPanel').classList.add('hidden');
+        }
+
+        // 导出设备数据（模拟）
+        function exportDeviceData(deviceId) {
+            const device = deviceList.find(d => d.id === deviceId);
+            if (!device) return;
+            
+            alert(`已导出设备【${device.name}】的运行数据`);
+            closeModal();
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', initPage);
+
+        // 点击弹窗外部关闭
+        document.getElementById('deviceModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
