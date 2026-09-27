@@ -405,11 +405,16 @@ def entry():
     return _index()
 
 
-# ---------- Vercel 挂载：把本应用挂到 /api/recharge ----------
-# Vercel 会把完整路径（含 /api/recharge）传给 Flask，用 DispatcherMiddleware 去掉前缀。
+# ---------- Vercel 挂载 ----------
+# Vercel 文件式函数只匹配精确路径 /api/recharge；通过 /recharge 重写进来时，
+# 函数收到的 PATH_INFO 可能是原始路径 /recharge（而非目标 /api/recharge），
+# 故把同一应用同时挂到 /api/recharge 与 /recharge 两个前缀，二者都能正确去前缀。
 # 模块级 `app` 必须是这个 dispatcher（Vercel 导入的 WSGI 应用）。
 flask_app = app
-app = DispatcherMiddleware(Flask("recharge-root"), {"/api/recharge": flask_app})
+app = DispatcherMiddleware(Flask("recharge-root"), {
+    "/api/recharge": flask_app,
+    "/recharge": flask_app,
+})
 
 
 if __name__ == "__main__":
