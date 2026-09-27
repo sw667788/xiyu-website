@@ -4,5 +4,9 @@
     "api/*.py": {
       "excludeFiles": "{public/**,picture/**,dist/**,dist-ssr/**,node_modules/**,.trae/**,.git/**}"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/recharge", "destination": "/api/recharge" },
+    { "source": "/recharge/", "destination": "/api/recharge" }
+  ]
 }

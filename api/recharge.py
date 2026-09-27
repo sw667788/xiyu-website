@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 """账户充值系统 — Vercel Python Function（并入 xiyu-website 官网仓库）
 
-访问形态（与 express_fill.py 同范式，Vercel 自动把 api/recharge.py 挂到 /api/recharge）：
-  GET  /api/recharge/            充值首页
-  POST /api/recharge/create       创建订单并跳支付宝
-  POST /api/recharge/notify       支付宝异步通知（验签后入账，唯一可靠依据）
-  GET  /api/recharge/return       同步回跳（仅展示，不作为成功依据）
-  GET  /api/recharge/status/<oid> 轮询订单状态
-  GET  /api/recharge/admin?token= 后台查看（需 ADMIN_TOKEN）
+范式与同目录 express_fill.py 一致：Vercel 文件式函数只匹配精确路径 /api/recharge，
+不匹配子路径，因此本应用采用「单入口 + query 参数分派」，所有操作都走 /api/recharge。
 
-挂载说明：Vercel 会把完整路径传给 Flask（不会自动去掉 /api/recharge 前缀），
-所以这里用 werkzeug DispatcherMiddleware 把本应用挂到 /api/recharge，
-Flask 路由仍按根路径（/、/create、/status/<oid> ...）书写，最贴近原版充值应用。
-另：通过 xiyu-website 的「项目级内部重写」/recharge/(.*) -> /api/recharge/$1，
-   用户最终用干净的 https://xiyutex.com/recharge 访问（无需额外 DNS、不跨项目代理）。
+访问形态（对用户暴露的是干净路径 /recharge，由 vercel.json rewrite -> /api/recharge）：
+  GET  /recharge                     充值首页
+  POST /recharge                     (a)账号+金额 创建订单并跳支付宝
+                                     (b)支付宝异步通知(带 sign/trade_status) 验签入账
+  GET  /recharge?r=return&out_trade_no=..  同步回跳（仅展示）
+  GET  /recharge?r=status&oid=..     轮询订单状态(JSON)
+  GET  /recharge?r=admin&token=..    后台查看（需 ADMIN_TOKEN）
+
+挂载：werkzeug DispatcherMiddleware 把 Flask 应用挂到 /api/recharge，去掉前缀后
+Flask 内部仍按根路径（/）书写。
 """
 import os
 import sqlite3
@@ -26,6 +26,8 @@ from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from alipay import AliPay
 
 app = Flask(__name__)
+# DispatcherMiddleware 精确匹配挂载点时会给出空 PATH_INFO，关掉尾斜杠重定向避免 308
+app.url_map.strict_slashes = False
 
 # ============ 配置区（全部可用环境变量覆盖，无需改代码） ============
 APP_ID = os.environ.get("ALIPAY_APP_ID", "你的支付宝APP_ID")
@@ -36,9 +38,10 @@ PUBLIC_KEY_PATH = os.environ.get("PUBLIC_KEY_PATH", "alipay_public_key.pem")
 SANDBOX = os.environ.get("ALIPAY_SANDBOX", "0") == "1"
 GATEWAY = "https://openapi.alipaydev.com/gateway.do" if SANDBOX \
     else "https://openapi.alipay.com/gateway.do"
-RETURN_URL = os.environ.get("RETURN_URL", "https://xiyutex.com/recharge/return")
-NOTIFY_URL = os.environ.get("NOTIFY_URL", "https://xiyutex.com/recharge/notify")
-# 挂载基路径：用户走干净路径 /recharge 访问，链接统一加此前缀，避免跳错。
+# 用户可见的干净路径（由 vercel.json rewrite 映射到 /api/recharge）
+RETURN_URL = os.environ.get("RETURN_URL", "https://xiyutex.com/recharge?r=return")
+NOTIFY_URL = os.environ.get("NOTIFY_URL", "https://xiyutex.com/recharge")
+# 链接前缀：页面内链接/表单统一带此前缀（干净路径）
 BASE_PATH = os.environ.get("BASE_PATH", "/recharge").rstrip("/")
 # 数据库：DATABASE_URL 支持 postgres:// / mysql:// / 本地 SQLite 文件
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -190,11 +193,11 @@ except Exception as e:
     print("WARN: 初始化建表未成功（首次访问时重试）：", e)
 
 
-# ---------- 充值首页 ----------
+# ---------- 页面模板 ----------
 INDEX_HTML = """
 <html><body style="font-family:sans-serif;max-width:420px;margin:40px auto">
   <h2>账户充值</h2>
-  <form action="{{ base }}/create" method="post">
+  <form action="{{ base }}" method="post">
     <p>账号：<br><input name="account" required style="width:100%;padding:6px"></p>
     <p>金额：<br>
       <select name="amount" style="width:100%;padding:6px">
@@ -217,8 +220,9 @@ STATUS_HTML = """
   <p id="s">正在确认支付状态…</p>
   <script>
     const oid = "{{oid}}";
+    const base = "{{ base }}";
     const t = setInterval(async () => {
-      const r = await fetch("{{ base }}/status/" + oid);
+      const r = await fetch(base + "?r=status&oid=" + encodeURIComponent(oid));
       const d = await r.json();
       if (d.status === "SUCCESS") {
         document.getElementById("s").innerText =
@@ -260,15 +264,62 @@ ADMIN_HTML = """
 """
 
 
-@app.route("/")
-def index():
+# ---------- 业务处理 ----------
+def _index():
     return render_template_string(INDEX_HTML, base=BASE_PATH)
 
 
-@app.route("/create", methods=["POST"])
-def create():
-    account = request.form["account"].strip()
-    amount = float(request.form["amount"])
+def _status(order_id):
+    db = get_db()
+    order = db.execute(
+        qmark("SELECT status, account FROM orders WHERE order_id=?"), (order_id,)
+    ).fetchone()
+    if not order:
+        db.close()
+        return jsonify({"status": "NOT_FOUND"})
+    account = order["account"]
+    acc = db.execute(
+        qmark("SELECT balance FROM accounts WHERE account=?"), (account,)
+    ).fetchone()
+    db.close()
+    return jsonify({
+        "status": order["status"],
+        "account": account,
+        "balance": acc["balance"] if acc else 0,
+    })
+
+
+def _return_page(order_id):
+    return render_template_string(
+        STATUS_HTML.replace("{{oid}}", order_id), base=BASE_PATH
+    )
+
+
+def _admin():
+    if request.args.get("token") != ADMIN_TOKEN:
+        return "Forbidden：请提供正确的 ?token=", 403
+    db = get_db()
+    accounts = db.execute(
+        qmark("SELECT account, balance FROM accounts ORDER BY balance DESC")
+    ).fetchall()
+    orders = db.execute(
+        qmark("SELECT order_id, account, amount, status, created_at FROM orders "
+              "ORDER BY created_at DESC LIMIT 50")
+    ).fetchall()
+    db.close()
+    return render_template_string(
+        ADMIN_HTML, db=db_label(), accounts=accounts, orders=orders
+    )
+
+
+def _create():
+    account = (request.form.get("account") or "").strip()
+    try:
+        amount = float(request.form.get("amount"))
+    except (TypeError, ValueError):
+        return "金额格式不对", 400
+    if not account:
+        return "缺少账号", 400
     order_id = "R" + uuid.uuid4().hex[:16]
 
     created_at = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -295,8 +346,8 @@ def create():
     return redirect(GATEWAY + "?" + order_string)
 
 
-@app.route("/notify", methods=["POST"])
-def notify():
+def _notify():
+    """支付宝异步通知：付款成功的唯一可靠依据。"""
     data = request.form.to_dict()
     sign = data.pop("sign", None)
     if not sign or not get_alipay().verify(data, sign):
@@ -330,64 +381,38 @@ def notify():
             )
         db.commit()
         db.close()
-    return "success"
+    return "success"  # 必须返回 success，否则支付宝会重复通知
 
 
-@app.route("/return")
-def return_url():
-    order_id = request.args.get("out_trade_no", "")
-    return render_template_string(STATUS_HTML.replace("{{oid}}", order_id), base=BASE_PATH)
-
-
-@app.route("/status/<order_id>")
-def status(order_id):
-    db = get_db()
-    order = db.execute(
-        qmark("SELECT status, account FROM orders WHERE order_id=?"), (order_id,)
-    ).fetchone()
-    if not order:
-        db.close()
-        return jsonify({"status": "NOT_FOUND"})
-    account = order["account"]
-    acc = db.execute(
-        qmark("SELECT balance FROM accounts WHERE account=?"), (account,)
-    ).fetchone()
-    db.close()
-    return jsonify({
-        "status": order["status"],
-        "account": account,
-        "balance": acc["balance"] if acc else 0,
-    })
-
-
-@app.route("/admin")
-def admin():
-    if request.args.get("token") != ADMIN_TOKEN:
-        return "Forbidden：请提供正确的 ?token=", 403
-    db = get_db()
-    accounts = db.execute(
-        qmark("SELECT account, balance FROM accounts ORDER BY balance DESC")
-    ).fetchall()
-    orders = db.execute(
-        qmark("SELECT order_id, account, amount, status, created_at FROM orders "
-              "ORDER BY created_at DESC LIMIT 50")
-    ).fetchall()
-    db.close()
-    return render_template_string(
-        ADMIN_HTML, db=db_label(), accounts=accounts, orders=orders
-    )
+@app.route("/", methods=["GET", "POST"])
+def entry():
+    if request.method == "POST":
+        form = request.form
+        # 支付宝异步通知：含 sign / trade_status / out_trade_no
+        if "sign" in form or "trade_status" in form:
+            return _notify()
+        # 充值下单：含 account + amount
+        if "account" in form and "amount" in form:
+            return _create()
+        return "bad request", 400
+    r = request.args.get("r", "")
+    if r == "status":
+        return _status(request.args.get("oid", ""))
+    if r == "return":
+        return _return_page(request.args.get("out_trade_no", ""))
+    if r == "admin":
+        return _admin()
+    return _index()
 
 
 # ---------- Vercel 挂载：把本应用挂到 /api/recharge ----------
-# Vercel 会把完整路径（含 /api/recharge）传给 Flask，用 DispatcherMiddleware 去掉前缀，
-# 使上面的根路由（/、/create、/status/<oid> …）无需改动即可在 /api/recharge 下工作。
-# 注意：模块级 `app` 必须是这个 dispatcher（Vercel 导入的 WSGI 应用），
-# 原始 Flask 应用改名为 flask_app 保留引用。
+# Vercel 会把完整路径（含 /api/recharge）传给 Flask，用 DispatcherMiddleware 去掉前缀。
+# 模块级 `app` 必须是这个 dispatcher（Vercel 导入的 WSGI 应用）。
 flask_app = app
 app = DispatcherMiddleware(Flask("recharge-root"), {"/api/recharge": flask_app})
 
 
 if __name__ == "__main__":
-    # 本地调试：访问 http://localhost:8090/api/recharge/
+    # 本地调试：访问 http://localhost:8090/api/recharge
     port = int(os.environ.get("PORT", 8090))
     flask_app.run(host="0.0.0.0", port=port, debug=True)
