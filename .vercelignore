@@ -1,0 +1,8 @@
+# 部署上传时排除（不影响静态站构建产物 dist/，Vercel 会重新 vite build）
+picture/
+dist/
+dist-ssr/
+node_modules/
+.trae/
+.vercel/
+*.log
