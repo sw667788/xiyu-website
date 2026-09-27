@@ -5,4 +5,5 @@ dist-ssr/
 node_modules/
 .trae/
 .vercel/
+.ssr-build/
 *.log

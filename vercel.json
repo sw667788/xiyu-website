@@ -1,8 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
   "functions": {
     "api/*.py": {
-      "excludeFiles": "{public/**,picture/**,dist/**,dist-ssr/**,node_modules/**,.trae/**,.git/**}"
+      "excludeFiles": "{public/**,picture/**,dist/**,dist-ssr/**,node_modules/**,.trae/**,.git/**,scripts/**,.ssr-build/**}"
     }
   },
   "rewrites": [

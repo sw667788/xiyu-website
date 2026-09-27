@@ -30,3 +30,4 @@ picture/
 .trae/
 .vercel
 .env*
+.ssr-build
