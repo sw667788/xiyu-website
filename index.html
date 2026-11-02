@@ -39,6 +39,26 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // 境内网络访问境外托管时，图片请求偶发中途断连（浏览器不会自动重试），
+      // 这里对加载失败的图片最多重试 3 次，避免页面出现空白图。
+      document.addEventListener(
+        'error',
+        function (e) {
+          var t = e.target;
+          if (!t || t.tagName !== 'IMG') return;
+          var n = parseInt(t.dataset.retry || '0', 10);
+          if (n >= 3) return;
+          t.dataset.retry = String(n + 1);
+          var base = (t.getAttribute('src') || '').split('?')[0];
+          if (!base) return;
+          setTimeout(function () {
+            t.src = base + '?retry=' + (n + 1) + '&t=' + Date.now();
+          }, 400 * (n + 1));
+        },
+        true,
+      );
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
