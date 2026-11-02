@@ -117,7 +117,7 @@ export default function Home() {
         {/* Animated Background Image */}
         <div className="absolute inset-0">
           <img
-            src="/images/hero.png"
+            src="/images/hero-opt.jpg"
             alt="Xiyu Textile"
             className="hero-img w-full h-full object-cover"
           />
